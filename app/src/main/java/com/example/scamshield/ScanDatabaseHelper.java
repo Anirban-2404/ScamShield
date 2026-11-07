@@ -1,6 +1,7 @@
 
 package com.example.scamshield;
 
+import android.util.Log;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -89,6 +90,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
     }
 
     // Save a scan under the currently logged-in account.
+
     public long insertScan(
             String scanType,
             String scannedContent,
@@ -135,7 +137,9 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
         ContentValues values = new ContentValues();
 
-        values.put(COL_TYPE, scanType.toUpperCase());
+        String normalizedType = scanType.toUpperCase();
+
+        values.put(COL_TYPE, normalizedType);
         values.put(COL_CONTENT, scannedContent);
         values.put(COL_SCORE, riskScore);
         values.put(COL_LEVEL, riskLevel);
@@ -143,8 +147,49 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_TIMESTAMP, scannedAt);
         values.put(COL_USER_UID, uid);
 
-        return db.insert(TABLE_SCANS, null, values);
+        // First save the scan locally.
+        long insertedId = db.insert(TABLE_SCANS, null, values);
+
+        // Upload to Firestore only if local saving succeeds.
+        if (insertedId != -1) {
+
+            ScanRecord record = new ScanRecord(
+                    (int) insertedId,
+                    normalizedType,
+                    scannedContent,
+                    riskScore,
+                    riskLevel,
+                    explanation,
+                    scannedAt
+            );
+
+            FirestoreSync.uploadScan(
+                    record,
+                    new FirestoreSync.SyncCallback() {
+
+                        @Override
+                        public void onSuccess() {
+                            Log.d(
+                                    "FirestoreSync",
+                                    "Scan uploaded successfully."
+                            );
+                        }
+
+                        @Override
+                        public void onFailure(Exception error) {
+                            Log.e(
+                                    "FirestoreSync",
+                                    "Scan upload failed.",
+                                    error
+                            );
+                        }
+                    }
+            );
+        }
+
+        return insertedId;
     }
+
 
     // Retrieve only the current user's scans.
     public List<ScanRecord> getAllScans() {
