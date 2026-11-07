@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "989738621546",
+    "project_id": "scamshield-8cca4",
+    "storage_bucket": "scamshield-8cca4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989738621546:android:d1b459724baa6b59b98813",
+        "android_client_info": {
+          "package_name": "com.example.scamshield"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEoM_ioBjz6MXQ9QIguWk1V6qf-x0EK5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

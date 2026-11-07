@@ -60,6 +60,37 @@ public class MainActivity extends AppCompatActivity {
         threatCount = findViewById(R.id.threatCount);
     }
 
+
+    private void confirmLogout() {
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to log out of ScamShield?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Logout", (dialog, which) -> {
+
+                    com.google.firebase.auth.FirebaseAuth
+                            .getInstance()
+                            .signOut();
+
+                    android.content.Intent intent =
+                            new android.content.Intent(
+                                    MainActivity.this,
+                                    LoginActivity.class
+                            );
+
+                    intent.addFlags(
+                            android.content.Intent.FLAG_ACTIVITY_NEW_TASK |
+                                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    );
+
+                    startActivity(intent);
+                    finish();
+                })
+                .show();
+    }
+
+
     private void setupClickListeners() {
 
         findViewById(R.id.messageScanCard).setOnClickListener(v -> {
@@ -574,26 +605,63 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------------- SETTINGS ----------------
 
+
     private void showSettings() {
 
         String[] options = {
-                "View App Information",
-                "Clear Analysis History"
+                "Account Information",
+                "Logout",
+                "Clear Scan History",
+                "About ScamShield"
         };
 
-        new AlertDialog.Builder(this)
+        new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("Settings")
                 .setItems(options, (dialog, which) -> {
 
-                    if (which == 0) {
-                        showAppInformation();
-                    } else if (which == 1) {
-                        confirmClearHistory();
+                    switch (which) {
+
+                        case 0:
+                            com.google.firebase.auth.FirebaseUser user =
+                                    com.google.firebase.auth.FirebaseAuth
+                                            .getInstance().getCurrentUser();
+
+                            String email = user != null
+                                    ? user.getEmail()
+                                    : "Not signed in";
+
+                            new androidx.appcompat.app.AlertDialog.Builder(this)
+                                    .setTitle("Account Information")
+                                    .setMessage("Email: " + email)
+                                    .setPositiveButton("OK", null)
+                                    .show();
+                            break;
+
+                        case 1:
+                            confirmLogout();
+                            break;
+
+                        case 2:
+                            confirmClearHistory();
+                            break;
+
+                        case 3:
+                            new androidx.appcompat.app.AlertDialog.Builder(this)
+                                    .setTitle("About ScamShield")
+                                    .setMessage(
+                                            "ScamShield\n\n" +
+                                                    "Your digital safety companion.\n" +
+                                                    "Identify suspicious messages and URLs."
+                                    )
+                                    .setPositiveButton("OK", null)
+                                    .show();
+                            break;
                     }
                 })
                 .setNegativeButton("Close", null)
                 .show();
     }
+
 
     private void showAppInformation() {
 
