@@ -1,0 +1,26 @@
+Final Project Submission & Demonstration Guidelines
+
+
+Please complete your final project and submit your GitHub link, project report, and video demonstration via the attached form by the end of your scheduled showcase date. Please ensure that you submit the exact same project title as previously submitted. There won't be any marks for version control, but we expect you to maintain your GitHub repository properly.
+
+Your project will be evaluated based on its coverage of the topics taught from Lab 8 to Lab 11.
+
+
+Demonstration Key Points
+During both your video presentation and live demonstration, ensure you cover the following core areas:
+* Overview & Features: App purpose and a detailed feature walkthrough.
+* Architecture & Navigation: Multi-Activity navigation, explicit/implicit Intents, View Binding, and event handling.
+* UI & Lists: Layout design (LinearLayout, RelativeLayout, or ConstraintLayout) and dynamic list handling using RecyclerView, Adapters, and ViewHolders.
+* Android Components: Demonstrate how your application utilizes core system components and handles permissions. Specifically, showcase how your app responds to system broadcast events (e.g., low battery mode or airplane mode transitions), implements Content Providers to access shared device data like media or contacts, or runs services such as foreground services with active notification tray updates or background tasks.
+* Networking & Firebase: API requests (JSON/XML parsing), HTTP operations, and mandatory Firebase services (Authentication, Realtime Database, Firestore). Include media/picture storage if used—if your app stores pictures anywhere, please include that as well.
+* Layout Responsiveness (Optional): Dynamic UI scaling and auto-rotation support.
+
+
+Project Report Requirementss
+Submit a typed Word document (.docx) via the form and bring a printed copy to your live demonstration. The report must include:
+* Overview & Features: App purpose and a detailed feature walkthrough accompanied by screenshots.
+* API & Database: Screenshots of external API responses and mandatory Firebase setups (Authentication, Realtime DB, Firestore, and file storage if applicable).
+
+Video Submission Guidelines
+* Video Limit: Maximum 5 minutes (you may increase playback speed if necessary to fit the limit).
+* Access Permissions: Ensure the video link is set to publicly accessible.
