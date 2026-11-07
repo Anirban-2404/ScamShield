@@ -3,7 +3,6 @@ package com.example.scamshield;
 
 import android.os.Bundle;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
@@ -18,17 +17,19 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     private TextView messageCount, urlCount, threatCount;
 
+    private ScanDatabaseHelper databaseHelper;
+
     private static final String PREFS = "ScamShieldData";
     private static final String HISTORY = "scan_history";
+    private static final String MIGRATION_DONE = "sqlite_migration_done";
 
-    private final int BG = Color.rgb(11, 21, 18);
-    private final int GREEN = Color.rgb(120, 220, 167);
     private final int WHITE = Color.WHITE;
     private final int MUTED = Color.rgb(140, 169, 154);
 
@@ -37,8 +38,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        databaseHelper = new ScanDatabaseHelper(this);
+
         initializeViews();
+
+        migrateOldHistory();
+
         setupClickListeners();
+
         updateDashboard();
     }
 
@@ -68,10 +75,10 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.settingsNav).setOnClickListener(v ->
                 showSettings());
 
-        // Home button
         View home = findViewById(R.id.messageCount);
+
         if (home != null) {
-            findViewById(R.id.messageCount).setOnClickListener(v ->
+            home.setOnClickListener(v ->
                     Toast.makeText(this, "You are on Home",
                             Toast.LENGTH_SHORT).show());
         }
@@ -156,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
 
         score = Math.min(score, 100);
 
-        saveScan("Message", message, score, reasons);
+        saveScan("MESSAGE", message, score, reasons);
 
         showResult("Message Analysis", score, reasons);
     }
@@ -269,6 +276,17 @@ public class MainActivity extends AppCompatActivity {
         reasons.put(reason);
     }
 
+    private String getRiskLevel(int score) {
+
+        if (score >= 60) {
+            return "HIGH";
+        } else if (score >= 30) {
+            return "MODERATE";
+        } else {
+            return "LOW";
+        }
+    }
+
     private void showResult(String title, int score, JSONArray reasons) {
 
         String level;
@@ -315,71 +333,114 @@ public class MainActivity extends AppCompatActivity {
         updateDashboard();
     }
 
-    // ---------------- LOCAL HISTORY ----------------
-
-    private JSONArray getHistory() {
-
-        String data = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getString(HISTORY, "[]");
-
-        try {
-            return new JSONArray(data);
-        } catch (JSONException e) {
-            return new JSONArray();
-        }
-    }
+    // ---------------- SQLITE STORAGE ----------------
 
     private void saveScan(String type, String content,
                           int score, JSONArray reasons) {
 
-        JSONArray history = getHistory();
+        String riskLevel = getRiskLevel(score);
 
-        JSONObject item = new JSONObject();
+        long result = databaseHelper.insertScan(
+                type,
+                content,
+                score,
+                riskLevel,
+                reasons.toString(),
+                System.currentTimeMillis()
+        );
 
-        try {
-            item.put("type", type);
-            item.put("content", content);
-            item.put("score", score);
-            item.put("reasons", reasons);
-            item.put("time", System.currentTimeMillis());
-
-            history.put(item);
-
-            getSharedPreferences(PREFS, MODE_PRIVATE)
-                    .edit()
-                    .putString(HISTORY, history.toString())
-                    .apply();
-
-        } catch (JSONException e) {
+        if (result == -1) {
             Toast.makeText(this, "Could not save scan",
                     Toast.LENGTH_SHORT).show();
         }
+
+        updateDashboard();
+    }
+
+    // Migrate previously saved SharedPreferences history into SQLite
+    private void migrateOldHistory() {
+
+        android.content.SharedPreferences preferences =
+                getSharedPreferences(PREFS, MODE_PRIVATE);
+
+        if (preferences.getBoolean(MIGRATION_DONE, false)) {
+            return;
+        }
+
+        String oldData = preferences.getString(HISTORY, "[]");
+
+        try {
+            JSONArray oldHistory = new JSONArray(oldData);
+
+            for (int i = 0; i < oldHistory.length(); i++) {
+
+                JSONObject item = oldHistory.optJSONObject(i);
+
+                if (item == null) {
+                    continue;
+                }
+
+                String type = item.optString("type", "");
+                String content = item.optString("content", "");
+                int score = item.optInt("score", 0);
+                long time = item.optLong("time", System.currentTimeMillis());
+
+                JSONArray reasons = item.optJSONArray("reasons");
+
+                if (reasons == null) {
+                    reasons = new JSONArray();
+                }
+
+                if (content.trim().isEmpty()) {
+                    continue;
+                }
+
+                if (!type.equalsIgnoreCase("Message")
+                        && !type.equalsIgnoreCase("URL")) {
+                    continue;
+                }
+
+                // Avoid importing records already present.
+                boolean alreadyImported = false;
+
+                List<ScanRecord> existingRecords = databaseHelper.getAllScans();
+
+                for (ScanRecord record : existingRecords) {
+                    if (record.getScanType().equalsIgnoreCase(type)
+                            && record.getScannedContent().equals(content)
+                            && record.getScannedAt() == time) {
+                        alreadyImported = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyImported && score >= 0 && score <= 100) {
+                    databaseHelper.insertScan(
+                            type.toUpperCase(Locale.ROOT),
+                            content,
+                            score,
+                            getRiskLevel(score),
+                            reasons.toString(),
+                            time
+                    );
+                }
+            }
+
+        } catch (JSONException e) {
+            Toast.makeText(this, "Old history migration failed",
+                    Toast.LENGTH_LONG).show();
+        }
+
+        preferences.edit()
+                .putBoolean(MIGRATION_DONE, true)
+                .apply();
     }
 
     private void updateDashboard() {
 
-        JSONArray history = getHistory();
-
-        int messages = 0;
-        int urls = 0;
-        int threats = 0;
-
-        for (int i = 0; i < history.length(); i++) {
-
-            JSONObject item = history.optJSONObject(i);
-
-            if (item == null) continue;
-
-            if ("Message".equals(item.optString("type"))) {
-                messages++;
-            } else if ("URL".equals(item.optString("type"))) {
-                urls++;
-            }
-
-            if (item.optInt("score") >= 60) {
-                threats++;
-            }
-        }
+        int messages = databaseHelper.getMessageScanCount();
+        int urls = databaseHelper.getUrlScanCount();
+        int threats = databaseHelper.getThreatCount();
 
         messageCount.setText(String.valueOf(messages));
         urlCount.setText(String.valueOf(urls));
@@ -390,9 +451,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void showHistory() {
 
-        JSONArray history = getHistory();
+        List<ScanRecord> history = databaseHelper.getAllScans();
 
-        if (history.length() == 0) {
+        if (history.isEmpty()) {
             new AlertDialog.Builder(this)
                     .setTitle("Analysis History")
                     .setMessage("No analysis records found.\n\nStart your first scan!")
@@ -401,57 +462,65 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String[] entries = new String[history.length()];
+        String[] entries = new String[history.size()];
 
-        for (int i = history.length() - 1; i >= 0; i--) {
+        for (int i = 0; i < history.size(); i++) {
 
-            JSONObject item = history.optJSONObject(i);
+            ScanRecord item = history.get(i);
 
-            if (item == null) continue;
+            String content = item.getScannedContent();
 
-            String content = item.optString("content");
             if (content.length() > 35) {
                 content = content.substring(0, 35) + "...";
             }
 
-            entries[history.length() - 1 - i] =
-                    item.optString("type") + " | Risk: "
-                            + item.optInt("score") + "/100\n"
-                            + content;
+            entries[i] = item.getScanType()
+                    + " | Risk: "
+                    + item.getRiskScore()
+                    + "/100\n"
+                    + content;
         }
 
         new AlertDialog.Builder(this)
                 .setTitle("Analysis History")
                 .setItems(entries, (dialog, which) -> {
 
-                    JSONObject item = history.optJSONObject(
-                            history.length() - 1 - which);
-
-                    if (item != null) {
-                        showSavedResult(item);
+                    if (which >= 0 && which < history.size()) {
+                        showSavedResult(history.get(which));
                     }
                 })
                 .setPositiveButton("Close", null)
                 .show();
     }
 
-    private void showSavedResult(JSONObject item) {
+    private void showSavedResult(ScanRecord item) {
 
         StringBuilder details = new StringBuilder();
 
-        details.append("Type: ").append(item.optString("type"));
+        details.append("Type: ").append(item.getScanType());
+
         details.append("\n\nContent:\n")
-                .append(item.optString("content"));
+                .append(item.getScannedContent());
 
         details.append("\n\nRisk Score: ")
-                .append(item.optInt("score"))
+                .append(item.getRiskScore())
                 .append("/100");
 
-        JSONArray reasons = item.optJSONArray("reasons");
+        details.append("\n\nAssessment: ")
+                .append(item.getRiskLevel())
+                .append(" RISK");
+
+        JSONArray reasons;
+
+        try {
+            reasons = new JSONArray(item.getExplanation());
+        } catch (JSONException e) {
+            reasons = new JSONArray();
+        }
 
         details.append("\n\nWarning Signs:");
 
-        if (reasons != null && reasons.length() > 0) {
+        if (reasons.length() > 0) {
             for (int i = 0; i < reasons.length(); i++) {
                 details.append("\n• ").append(reasons.optString(i));
             }
@@ -470,36 +539,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void showStatistics() {
 
-        JSONArray history = getHistory();
-
-        int messages = 0;
-        int urls = 0;
-        int threats = 0;
-
-        for (int i = 0; i < history.length(); i++) {
-
-            JSONObject item = history.optJSONObject(i);
-
-            if (item == null) continue;
-
-            if ("Message".equals(item.optString("type"))) {
-                messages++;
-            } else if ("URL".equals(item.optString("type"))) {
-                urls++;
-            }
-
-            if (item.optInt("score") >= 60) {
-                threats++;
-            }
-        }
+        int total = databaseHelper.getTotalScans();
+        int messages = databaseHelper.getMessageScanCount();
+        int urls = databaseHelper.getUrlScanCount();
+        int threats = databaseHelper.getThreatCount();
 
         String statistics =
-                "Total Analyses: " + history.length()
+                "Total Analyses: " + total
                         + "\n\nMessages Scanned: " + messages
                         + "\nURLs Scanned: " + urls
                         + "\nHigh-Risk Results: " + threats
                         + "\n\nLow/Moderate-Risk Results: "
-                        + (history.length() - threats);
+                        + (total - threats);
 
         new AlertDialog.Builder(this)
                 .setTitle("Security Statistics")
@@ -542,7 +593,7 @@ public class MainActivity extends AppCompatActivity {
                                 + "suspicious website links.\n\n"
                                 + "Version: 1.0\n"
                                 + "Analysis: Rule-based\n"
-                                + "Storage: Local device storage"
+                                + "Storage: SQLite local database"
                 )
                 .setPositiveButton("OK", null)
                 .show();
@@ -555,10 +606,7 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage("This will permanently delete all saved scan records.")
                 .setPositiveButton("Clear", (dialog, which) -> {
 
-                    getSharedPreferences(PREFS, MODE_PRIVATE)
-                            .edit()
-                            .remove(HISTORY)
-                            .apply();
+                    databaseHelper.clearHistory();
 
                     updateDashboard();
 
@@ -567,5 +615,14 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (databaseHelper != null) {
+            databaseHelper.close();
+        }
     }
 }
