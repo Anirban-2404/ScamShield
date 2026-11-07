@@ -52,4 +52,5 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.database)
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-database")
 }

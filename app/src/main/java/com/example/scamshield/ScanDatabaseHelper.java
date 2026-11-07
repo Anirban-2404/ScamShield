@@ -185,6 +185,32 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
                         }
                     }
             );
+
+            // Update Firebase Realtime Database statistics.
+            RealtimeDatabaseManager.updateScanStatistics(
+                    normalizedType,
+                    riskScore,
+                    scannedAt,
+                    new RealtimeDatabaseManager.UpdateCallback() {
+
+                        @Override
+                        public void onSuccess() {
+                            Log.d(
+                                    "RealtimeDatabase",
+                                    "Statistics updated successfully."
+                            );
+                        }
+
+                        @Override
+                        public void onFailure(Exception error) {
+                            Log.e(
+                                    "RealtimeDatabase",
+                                    "Statistics update failed.",
+                                    error
+                            );
+                        }
+                    }
+            );
         }
 
         return insertedId;
