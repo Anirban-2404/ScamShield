@@ -72,11 +72,15 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        findViewById(R.id.viewHistory).setOnClickListener(v ->
-                showHistory());
+        findViewById(R.id.viewHistory).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+            startActivity(intent);
+        });
 
-        findViewById(R.id.historyNav).setOnClickListener(v ->
-                showHistory());
+        findViewById(R.id.historyNav).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+            startActivity(intent);
+        });
 
         findViewById(R.id.statsNav).setOnClickListener(v ->
                 showStatistics());
