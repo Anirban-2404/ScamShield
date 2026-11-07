@@ -1,6 +1,8 @@
 
 package com.example.scamshield;
 
+import android.content.Intent;
+import com.example.scamshield.databinding.ActivityMainBinding;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.Gravity;
@@ -22,6 +24,8 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
+    private ActivityMainBinding binding;
+
     private TextView messageCount, urlCount, threatCount;
 
     private ScanDatabaseHelper databaseHelper;
@@ -36,7 +40,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         databaseHelper = new ScanDatabaseHelper(this);
 
@@ -57,8 +62,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupClickListeners() {
 
-        findViewById(R.id.messageScanCard).setOnClickListener(v ->
-                showMessageScanner());
+        findViewById(R.id.messageScanCard).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, MessageScannerActivity.class);
+            startActivity(intent);
+        });
 
         findViewById(R.id.urlScanCard).setOnClickListener(v ->
                 showUrlScanner());
