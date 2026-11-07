@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#101714"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="← Back"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#263B32" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="URL Security Inspector"
+            android:textColor="#FFFFFF"
+            android:textSize="25sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Check website addresses for suspicious URL patterns and potential phishing indicators."
+            android:textColor="#AAB9B0"
+            android:textSize="15sp" />
+
+        <EditText
+            android:id="@+id/urlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:background="#1D2923"
+            android:hint="https://example.com"
+            android:inputType="textUri"
+            android:singleLine="true"
+            android:padding="16dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#87958C" />
+
+        <Button
+            android:id="@+id/scanButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:text="Inspect URL"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:backgroundTint="#16A36A" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="SECURITY CHECKS"
+            android:textColor="#16C784"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="• HTTPS and HTTP connection type&#10;• Suspicious URL keywords&#10;• IP address-based URLs&#10;• Unusual URL length&#10;• Potentially misleading @ symbol"
+            android:textColor="#AAB9B0"
+            android:textSize="14sp"
+            android:lineSpacingExtra="6dp" />
+
+    </LinearLayout>
+</ScrollView>

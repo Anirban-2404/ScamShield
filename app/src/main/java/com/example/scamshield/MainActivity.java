@@ -67,8 +67,10 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        findViewById(R.id.urlScanCard).setOnClickListener(v ->
-                showUrlScanner());
+        findViewById(R.id.urlScanCard).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, UrlScannerActivity.class);
+            startActivity(intent);
+        });
 
         findViewById(R.id.viewHistory).setOnClickListener(v ->
                 showHistory());
