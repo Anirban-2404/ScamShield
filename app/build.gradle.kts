@@ -3,6 +3,7 @@ plugins {
 }
 
 android {
+
     namespace = "com.example.scamshield"
     compileSdk {
         version = release(37)
@@ -16,6 +17,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 
     buildTypes {
