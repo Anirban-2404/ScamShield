@@ -1,8 +1,9 @@
+
 package com.example.scamshield;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
@@ -27,56 +28,79 @@ public class HistoryActivity extends AppCompatActivity {
 
         databaseHelper = new ScanDatabaseHelper(this);
 
-        binding.backButton.setOnClickListener(v -> finish());
-
         binding.historyRecyclerView.setLayoutManager(
                 new LinearLayoutManager(this)
         );
+
+        binding.backButton.setOnClickListener(v -> finish());
 
         loadHistory();
     }
 
     private void loadHistory() {
 
-        List<ScanRecord> scans = databaseHelper.getAllScans();
+        List<ScanRecord> scanList = databaseHelper.getAllScans();
 
-        if (scans == null || scans.isEmpty()) {
-            binding.emptyText.setVisibility(android.view.View.VISIBLE);
+        if (scanList == null || scanList.isEmpty()) {
             binding.historyRecyclerView.setVisibility(android.view.View.GONE);
+            binding.emptyText.setVisibility(android.view.View.VISIBLE);
             return;
         }
 
-        binding.emptyText.setVisibility(android.view.View.GONE);
         binding.historyRecyclerView.setVisibility(android.view.View.VISIBLE);
+        binding.emptyText.setVisibility(android.view.View.GONE);
 
         ScanHistoryAdapter adapter = new ScanHistoryAdapter(
-                scans,
-                this::showScanDetails
+                scanList,
+                record -> showScanDetails(record)
         );
 
         binding.historyRecyclerView.setAdapter(adapter);
     }
 
-    private void showScanDetails(ScanRecord record) {
+    private void showScanDetails(ScanRecord scan) {
 
-        String date = new SimpleDateFormat(
+        SimpleDateFormat formatter = new SimpleDateFormat(
                 "dd MMM yyyy, hh:mm a",
                 Locale.getDefault()
-        ).format(new Date(record.getScannedAt()));
+        );
+
+        String scanDate = formatter.format(
+                new Date(scan.getScannedAt())
+        );
 
         String details =
-                "Scan Type: " + record.getScanType() + "\n\n" +
-                        "Scanned Content:\n" + record.getScannedContent() + "\n\n" +
-                        "Risk Score: " + record.getRiskScore() + "/100\n\n" +
-                        "Risk Level: " + record.getRiskLevel() + "\n\n" +
-                        "Analysis:\n" + record.getExplanation() + "\n\n" +
-                        "Date: " + date;
+                "Scan Type: " + scan.getScanType()
+                        + "\n\nScanned Content:\n"
+                        + scan.getScannedContent()
+                        + "\n\nRisk Score: "
+                        + scan.getRiskScore() + "/100"
+                        + "\n\nRisk Level: "
+                        + scan.getRiskLevel()
+                        + "\n\nScan Date: "
+                        + scanDate
+                        + "\n\nExplanation:\n"
+                        + (scan.getExplanation() == null
+                        ? "No explanation available."
+                        : scan.getExplanation());
 
         new AlertDialog.Builder(this)
                 .setTitle("Scan Details")
                 .setMessage(details)
+                .setNeutralButton("Share Report", (dialog, which) ->
+                        ScanReportHelper.shareScan(this, scan)
+                )
                 .setPositiveButton("Close", null)
                 .show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (databaseHelper != null) {
+            loadHistory();
+        }
     }
 
     @Override
@@ -85,6 +109,7 @@ public class HistoryActivity extends AppCompatActivity {
 
         if (databaseHelper != null) {
             databaseHelper.close();
+            databaseHelper = null;
         }
     }
 }

@@ -183,4 +183,5 @@ public class FirestoreSyncWorker extends Worker {
             database.close();
         }
     }
+
 }

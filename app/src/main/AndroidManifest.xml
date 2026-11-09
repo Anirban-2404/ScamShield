@@ -53,6 +53,9 @@
         <activity
             android:name=".DashboardActivity"
             android:exported="false" />
+        <activity
+            android:name=".AccountActivity"
+            android:exported="false" />
 
         <service
             android:name=".SecurityMonitoringService"

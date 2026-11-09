@@ -637,19 +637,12 @@ public class MainActivity extends AppCompatActivity {
                     switch (which) {
 
                         case 0:
-                            com.google.firebase.auth.FirebaseUser user =
-                                    com.google.firebase.auth.FirebaseAuth
-                                            .getInstance().getCurrentUser();
+                            Intent accountIntent = new Intent(
+                                    MainActivity.this,
+                                    AccountActivity.class
+                            );
 
-                            String email = user != null
-                                    ? user.getEmail()
-                                    : "Not signed in";
-
-                            new androidx.appcompat.app.AlertDialog.Builder(this)
-                                    .setTitle("Account Information")
-                                    .setMessage("Email: " + email)
-                                    .setPositiveButton("OK", null)
-                                    .show();
+                            startActivity(accountIntent);
                             break;
 
                         case 1:
