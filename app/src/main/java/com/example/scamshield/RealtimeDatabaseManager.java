@@ -17,6 +17,53 @@ public class RealtimeDatabaseManager {
         void onFailure(Exception error);
     }
 
+    // Synchronize complete statistics using local SQLite data.
+    public static void syncScanStatistics(
+            int messageCount,
+            int urlCount,
+            int highRiskCount,
+            long lastScanAt,
+            UpdateCallback callback
+    ) {
+
+        FirebaseUser user =
+                FirebaseAuth.getInstance().getCurrentUser();
+
+        if (user == null) {
+            if (callback != null) {
+                callback.onFailure(
+                        new IllegalStateException("User is not logged in.")
+                );
+            }
+            return;
+        }
+
+        Map<String, Object> stats = new HashMap<>();
+
+        stats.put("totalMessageScans", messageCount);
+        stats.put("totalUrlScans", urlCount);
+        stats.put("highRiskDetections", highRiskCount);
+        stats.put("lastScanAt", lastScanAt);
+        stats.put("lastUpdatedAt", ServerValue.TIMESTAMP);
+
+        FirebaseDatabase.getInstance()
+                .getReference("users")
+                .child(user.getUid())
+                .child("stats")
+                .updateChildren(stats)
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess();
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    if (callback != null) {
+                        callback.onFailure(error);
+                    }
+                });
+    }
+
+    // Increment statistics for an individual scan.
     public static void updateScanStatistics(
             String scanType,
             int riskScore,
@@ -28,9 +75,11 @@ public class RealtimeDatabaseManager {
                 FirebaseAuth.getInstance().getCurrentUser();
 
         if (user == null) {
-            callback.onFailure(
-                    new IllegalStateException("User is not logged in.")
-            );
+            if (callback != null) {
+                callback.onFailure(
+                        new IllegalStateException("User is not logged in.")
+                );
+            }
             return;
         }
 
@@ -44,14 +93,12 @@ public class RealtimeDatabaseManager {
 
         Map<String, Object> updates = new HashMap<>();
 
-        // Increment the appropriate scan counter.
         if ("MESSAGE".equalsIgnoreCase(scanType)) {
             updates.put("totalMessageScans", ServerValue.increment(1));
         } else if ("URL".equalsIgnoreCase(scanType)) {
             updates.put("totalUrlScans", ServerValue.increment(1));
         }
 
-        // Count high-risk detections (score >= 60).
         if (riskScore >= 60) {
             updates.put("highRiskDetections", ServerValue.increment(1));
         }

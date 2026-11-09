@@ -56,6 +56,11 @@ public class FirestoreSyncWorker extends Worker {
                 );
     }
 
+    public static void cancel(Context context) {
+        WorkManager.getInstance(context.getApplicationContext())
+                .cancelUniqueWork(WORK_NAME);
+    }
+
     @NonNull
     @Override
     public Result doWork() {
@@ -70,13 +75,9 @@ public class FirestoreSyncWorker extends Worker {
 
         try {
 
+            // STEP 1: Upload pending scans to Firestore.
             List<ScanRecord> pendingScans =
                     database.getPendingScans();
-
-            if (pendingScans.isEmpty()) {
-                Log.d(TAG, "No pending scans.");
-                return Result.success();
-            }
 
             for (ScanRecord scan : pendingScans) {
 
@@ -99,7 +100,7 @@ public class FirestoreSyncWorker extends Worker {
 
                             @Override
                             public void onFailure(Exception error) {
-                                Log.e(TAG, "Upload failed.", error);
+                                Log.e(TAG, "Firestore upload failed.", error);
                                 latch.countDown();
                             }
                         }
@@ -120,15 +121,62 @@ public class FirestoreSyncWorker extends Worker {
 
                 database.markScanAsSynced(scan.getId());
 
-                Log.d(TAG,
-                        "Scan synchronized: " + scan.getId());
+                Log.d(TAG, "Scan synchronized: " + scan.getId());
             }
+
+            // STEP 2: Recalculate statistics from SQLite.
+            int messages = database.getMessageScanCount();
+            int urls = database.getUrlScanCount();
+            int highRisk = database.getThreatCount();
+            long lastScan = database.getLastScanAt();
+
+            // STEP 3: Synchronize statistics with Firebase RTDB.
+            CountDownLatch statsLatch = new CountDownLatch(1);
+            AtomicBoolean statsSuccessful = new AtomicBoolean(false);
+
+            RealtimeDatabaseManager.syncScanStatistics(
+                    messages,
+                    urls,
+                    highRisk,
+                    lastScan,
+                    new RealtimeDatabaseManager.UpdateCallback() {
+
+                        @Override
+                        public void onSuccess() {
+                            statsSuccessful.set(true);
+                            statsLatch.countDown();
+                        }
+
+                        @Override
+                        public void onFailure(Exception error) {
+                            Log.e(TAG, "Statistics sync failed.", error);
+                            statsLatch.countDown();
+                        }
+                    }
+            );
+
+            boolean statsCompleted;
+
+            try {
+                statsCompleted = statsLatch.await(
+                        25, TimeUnit.SECONDS
+                );
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Result.retry();
+            }
+
+            if (!statsCompleted || !statsSuccessful.get()) {
+                return Result.retry();
+            }
+
+            Log.d(TAG, "All scan statistics synchronized successfully.");
 
             return Result.success();
 
         } catch (Exception e) {
 
-            Log.e(TAG, "Background sync error.", e);
+            Log.e(TAG, "Background synchronization error.", e);
             return Result.retry();
 
         } finally {

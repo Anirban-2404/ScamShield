@@ -10,9 +10,13 @@ import android.util.Log;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
@@ -43,11 +47,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
     private String getCurrentUserUid() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
-        if (user == null) {
-            return null;
-        }
-
-        return user.getUid();
+        return user == null ? null : user.getUid();
     }
 
     @Override
@@ -106,7 +106,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    // Save a scan locally and synchronize it with Firebase.
+    // Save scan locally, then schedule Firebase synchronization.
     public long insertScan(
             String scanType,
             String scannedContent,
@@ -171,8 +171,9 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
         if (insertedId != -1) {
 
-            // Send notification for high-risk scans.
+            // Show notification for high-risk scans.
             if (riskScore >= 60) {
+
                 SecurityNotificationHelper.showHighRiskNotification(
                         appContext,
                         normalizedType,
@@ -221,33 +222,12 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             );
 
             // Schedule background synchronization.
-            // Pending scans will be retried when internet is available.
+            // Worker handles Firestore and Realtime Database statistics.
             FirestoreSyncWorker.schedule(appContext);
 
-            // Update Firebase Realtime Database statistics.
-            RealtimeDatabaseManager.updateScanStatistics(
-                    normalizedType,
-                    riskScore,
-                    scannedAt,
-                    new RealtimeDatabaseManager.UpdateCallback() {
-
-                        @Override
-                        public void onSuccess() {
-                            Log.d(
-                                    "RealtimeDatabase",
-                                    "Statistics updated successfully."
-                            );
-                        }
-
-                        @Override
-                        public void onFailure(Exception error) {
-                            Log.e(
-                                    "RealtimeDatabase",
-                                    "Statistics update failed.",
-                                    error
-                            );
-                        }
-                    }
+            Log.d(
+                    "FirebaseSync",
+                    "Background synchronization scheduled."
             );
         }
 
@@ -411,13 +391,11 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             return 0;
         }
 
-        SQLiteDatabase db = getReadableDatabase();
-
         String query = "SELECT COUNT(*) FROM " + TABLE_SCANS
                 + " WHERE " + COL_USER_UID + " = ?"
                 + " AND UPPER(" + COL_LEVEL + ") = ?";
 
-        try (Cursor cursor = db.rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 query,
                 new String[]{uid, "HIGH"}
         )) {
@@ -438,8 +416,6 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             return 0;
         }
 
-        SQLiteDatabase db = getReadableDatabase();
-
         String query;
         String[] args;
 
@@ -459,7 +435,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             args = new String[]{uid, scanType};
         }
 
-        try (Cursor cursor = db.rawQuery(query, args)) {
+        try (Cursor cursor = getReadableDatabase().rawQuery(query, args)) {
 
             if (cursor.moveToFirst()) {
                 return cursor.getInt(0);
@@ -469,7 +445,33 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         return 0;
     }
 
-    // Clear only the current user's local scan history.
+    // Get the timestamp of the most recent scan.
+    public long getLastScanAt() {
+
+        String uid = getCurrentUserUid();
+
+        if (uid == null) {
+            return 0;
+        }
+
+        String query = "SELECT MAX(" + COL_TIMESTAMP + ") FROM "
+                + TABLE_SCANS
+                + " WHERE " + COL_USER_UID + " = ?";
+
+        try (Cursor cursor = getReadableDatabase().rawQuery(
+                query,
+                new String[]{uid}
+        )) {
+
+            if (cursor.moveToFirst()) {
+                return cursor.isNull(0) ? 0 : cursor.getLong(0);
+            }
+        }
+
+        return 0;
+    }
+
+    // Clear current user's local and cloud scan history.
 
     public void clearHistory() {
 
@@ -479,37 +481,68 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             return;
         }
 
-        // 1. Clear local SQLite history.
+        // 1. Cancel queued or running background synchronization.
+        FirestoreSyncWorker.cancel(appContext);
+
+        // 2. Clear local SQLite history.
         getWritableDatabase().delete(
                 TABLE_SCANS,
                 COL_USER_UID + " = ?",
                 new String[]{uid}
         );
 
-        // 2. Reset Firebase Realtime Database statistics.
-        java.util.Map<String, Object> resetStats =
-                new java.util.HashMap<>();
+        Log.d("ScanDatabase", "Local history cleared.");
+
+        // 3. Delete Cloud Firestore history.
+        FirestoreSync.deleteAllScans(
+                uid,
+                new FirestoreSync.SyncCallback() {
+
+                    @Override
+                    public void onSuccess() {
+                        Log.d(
+                                "FirestoreSync",
+                                "Cloud scan history deleted successfully."
+                        );
+                    }
+
+                    @Override
+                    public void onFailure(Exception error) {
+                        Log.e(
+                                "FirestoreSync",
+                                "Cloud history deletion failed.",
+                                error
+                        );
+                    }
+                }
+        );
+
+        // 4. Reset Firebase Realtime Database statistics.
+        Map<String, Object> resetStats = new HashMap<>();
 
         resetStats.put("totalMessageScans", 0);
         resetStats.put("totalUrlScans", 0);
         resetStats.put("highRiskDetections", 0);
         resetStats.put("lastScanAt", 0);
-        resetStats.put(
-                "lastUpdatedAt",
-                com.google.firebase.database.ServerValue.TIMESTAMP
-        );
+        resetStats.put("lastUpdatedAt", ServerValue.TIMESTAMP);
 
-        com.google.firebase.database.FirebaseDatabase
-                .getInstance()
+        FirebaseDatabase.getInstance()
                 .getReference("users")
                 .child(uid)
                 .child("stats")
                 .updateChildren(resetStats)
                 .addOnSuccessListener(unused ->
-                        Log.d("ScanDatabase", "History and statistics cleared.")
+                        Log.d(
+                                "RealtimeDatabase",
+                                "Dashboard statistics reset successfully."
+                        )
                 )
                 .addOnFailureListener(error ->
-                        Log.e("ScanDatabase", "Failed to reset Firebase statistics.", error)
+                        Log.e(
+                                "RealtimeDatabase",
+                                "Statistics reset failed.",
+                                error
+                        )
                 );
     }
 

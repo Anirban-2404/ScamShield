@@ -1,6 +1,12 @@
 
 package com.example.scamshield;
 
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
+
+import java.util.List;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -14,6 +20,72 @@ public class FirestoreSync {
         void onSuccess();
         void onFailure(Exception error);
     }
+
+
+    public static void deleteAllScans(
+            String uid,
+            SyncCallback callback
+    ) {
+
+        if (uid == null || uid.trim().isEmpty()) {
+            callback.onFailure(
+                    new IllegalArgumentException("Invalid user ID.")
+            );
+            return;
+        }
+
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+
+        CollectionReference scansRef = firestore
+                .collection("users")
+                .document(uid)
+                .collection("scans");
+
+        scansRef.get()
+                .addOnSuccessListener(snapshot -> {
+
+                    List<DocumentSnapshot> documents =
+                            snapshot.getDocuments();
+
+                    deleteBatch(scansRef, documents, 0, callback);
+                })
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    private static void deleteBatch(
+            CollectionReference collection,
+            List<DocumentSnapshot> documents,
+            int startIndex,
+            SyncCallback callback
+    ) {
+
+        if (startIndex >= documents.size()) {
+            callback.onSuccess();
+            return;
+        }
+
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+
+        WriteBatch batch = firestore.batch();
+
+        int endIndex = Math.min(startIndex + 500, documents.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            batch.delete(documents.get(i).getReference());
+        }
+
+        batch.commit()
+                .addOnSuccessListener(unused ->
+                        deleteBatch(
+                                collection,
+                                documents,
+                                endIndex,
+                                callback
+                        )
+                )
+                .addOnFailureListener(callback::onFailure);
+    }
+
 
     public static void uploadScan(
             ScanRecord scan,
