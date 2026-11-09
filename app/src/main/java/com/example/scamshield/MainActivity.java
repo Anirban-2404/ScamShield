@@ -54,6 +54,15 @@ public class MainActivity extends AppCompatActivity {
         updateDashboard();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (databaseHelper != null && messageCount != null) {
+            updateDashboard();
+        }
+    }
+
     private void initializeViews() {
         messageCount = findViewById(R.id.messageCount);
         urlCount = findViewById(R.id.urlCount);
@@ -113,8 +122,13 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        findViewById(R.id.statsNav).setOnClickListener(v ->
-                showStatistics());
+        findViewById(R.id.statsNav).setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    DashboardActivity.class
+            );
+            startActivity(intent);
+        });
 
         findViewById(R.id.settingsNav).setOnClickListener(v ->
                 showSettings());

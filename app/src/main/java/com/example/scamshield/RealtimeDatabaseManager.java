@@ -51,8 +51,8 @@ public class RealtimeDatabaseManager {
             updates.put("totalUrlScans", ServerValue.increment(1));
         }
 
-        // Count high-risk detections (score >= 70).
-        if (riskScore >= 70) {
+        // Count high-risk detections (score >= 60).
+        if (riskScore >= 60) {
             updates.put("highRiskDetections", ServerValue.increment(1));
         }
 
