@@ -3,6 +3,10 @@ package com.example.scamshield;
 
 import android.os.Bundle;
 import android.widget.Toast;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.os.Build;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,6 +28,12 @@ public class DashboardActivity extends AppCompatActivity {
     private ValueEventListener statsListener;
 
     private FirebaseAuth firebaseAuth;
+
+    private NetworkChangeReceiver networkReceiver;
+    private boolean receiverRegistered = false;
+
+    private boolean internetConnected = false;
+    private boolean firebaseConnected = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +68,7 @@ public class DashboardActivity extends AppCompatActivity {
 
         binding.btnRefresh.setOnClickListener(v -> {
             loadStatistics();
+
             Toast.makeText(
                     this,
                     "Refreshing statistics...",
@@ -78,7 +89,8 @@ public class DashboardActivity extends AppCompatActivity {
             statsReference.removeEventListener(statsListener);
         }
 
-        binding.tvConnectionStatus.setText("Connecting to Firebase...");
+        firebaseConnected = false;
+        updateConnectionStatus();
 
         statsListener = new ValueEventListener() {
 
@@ -86,42 +98,30 @@ public class DashboardActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
 
                 long messageScans = getLongValue(
-                        snapshot,
-                        "totalMessageScans"
-                );
+                        snapshot, "totalMessageScans");
 
                 long urlScans = getLongValue(
-                        snapshot,
-                        "totalUrlScans"
-                );
+                        snapshot, "totalUrlScans");
 
                 long highRisk = getLongValue(
-                        snapshot,
-                        "highRiskDetections"
-                );
+                        snapshot, "highRiskDetections");
 
                 long totalScans = messageScans + urlScans;
 
                 binding.tvTotalScans.setText(
-                        String.valueOf(totalScans)
-                );
+                        String.valueOf(totalScans));
 
                 binding.tvUrlScans.setText(
-                        String.valueOf(urlScans)
-                );
+                        String.valueOf(urlScans));
 
                 binding.tvMessageScans.setText(
-                        String.valueOf(messageScans)
-                );
+                        String.valueOf(messageScans));
 
                 binding.tvHighRisk.setText(
-                        String.valueOf(highRisk)
-                );
+                        String.valueOf(highRisk));
 
                 long lastScanAt = getLongValue(
-                        snapshot,
-                        "lastScanAt"
-                );
+                        snapshot, "lastScanAt");
 
                 if (lastScanAt > 0) {
 
@@ -132,31 +132,26 @@ public class DashboardActivity extends AppCompatActivity {
                             );
 
                     String formattedDate = formatter.format(
-                            new java.util.Date(lastScanAt)
-                    );
+                            new java.util.Date(lastScanAt));
 
                     binding.tvLastScan.setText(
-                            "Last scan: " + formattedDate
-                    );
+                            "Last scan: " + formattedDate);
 
                 } else {
 
                     binding.tvLastScan.setText(
-                            "Last scan: No scans yet"
-                    );
+                            "Last scan: No scans yet");
                 }
 
-                binding.tvConnectionStatus.setText(
-                        "● Connected to Firebase"
-                );
+                firebaseConnected = true;
+                updateConnectionStatus();
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
 
-                binding.tvConnectionStatus.setText(
-                        "Firebase connection failed"
-                );
+                firebaseConnected = false;
+                updateConnectionStatus();
 
                 Toast.makeText(
                         DashboardActivity.this,
@@ -171,12 +166,74 @@ public class DashboardActivity extends AppCompatActivity {
 
     private long getLongValue(
             DataSnapshot snapshot,
-            String childName
-    ) {
+            String childName) {
 
         Long value = snapshot.child(childName).getValue(Long.class);
 
         return value != null ? value : 0L;
+    }
+
+    // Network connectivity receiver
+
+    private void setupNetworkReceiver() {
+
+        networkReceiver = new NetworkChangeReceiver(isConnected -> {
+            internetConnected = isConnected;
+            updateConnectionStatus();
+        });
+
+        IntentFilter filter = new IntentFilter(
+                ConnectivityManager.CONNECTIVITY_ACTION);
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                    networkReceiver,
+                    filter,
+                    Context.RECEIVER_NOT_EXPORTED
+            );
+        } else {
+            registerReceiver(networkReceiver, filter);
+        }
+
+        receiverRegistered = true;
+
+        // Check current internet connection immediately.
+        networkReceiver.onReceive(
+                this,
+                new android.content.Intent(
+                        ConnectivityManager.CONNECTIVITY_ACTION)
+        );
+    }
+
+    private void updateConnectionStatus() {
+
+        String internetStatus = internetConnected
+                ? "Internet: Connected"
+                : "Internet: Offline";
+
+        String firebaseStatus = firebaseConnected
+                ? "Firebase: Connected"
+                : "Firebase: Disconnected";
+
+        binding.tvConnectionStatus.setText(
+                internetStatus + " | " + firebaseStatus
+        );
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        setupNetworkReceiver();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        if (receiverRegistered && networkReceiver != null) {
+            unregisterReceiver(networkReceiver);
+            receiverRegistered = false;
+        }
     }
 
     @Override
