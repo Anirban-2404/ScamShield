@@ -11,6 +11,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.firebase.auth.FirebaseAuth;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -72,28 +73,40 @@ public class MainActivity extends AppCompatActivity {
 
     private void confirmLogout() {
 
-        new androidx.appcompat.app.AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
                 .setTitle("Logout")
                 .setMessage("Are you sure you want to log out of ScamShield?")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Logout", (dialog, which) -> {
 
-                    com.google.firebase.auth.FirebaseAuth
-                            .getInstance()
-                            .signOut();
+                    // 1. Stop the foreground protection service
+                    Intent serviceIntent = new Intent(
+                            MainActivity.this,
+                            SecurityMonitoringService.class
+                    );
+                    stopService(serviceIntent);
 
-                    android.content.Intent intent =
-                            new android.content.Intent(
-                                    MainActivity.this,
-                                    LoginActivity.class
-                            );
+                    // 2. Reset the protection status
+                    getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("protection_active", false)
+                            .apply();
 
-                    intent.addFlags(
-                            android.content.Intent.FLAG_ACTIVITY_NEW_TASK |
-                                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    // 3. Sign out from Firebase
+                    FirebaseAuth.getInstance().signOut();
+
+                    // 4. Navigate to LoginActivity
+                    Intent loginIntent = new Intent(
+                            MainActivity.this,
+                            LoginActivity.class
                     );
 
-                    startActivity(intent);
+                    loginIntent.addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK |
+                                    Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    );
+
+                    startActivity(loginIntent);
                     finish();
                 })
                 .show();
