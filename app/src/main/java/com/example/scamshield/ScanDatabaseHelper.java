@@ -16,6 +16,8 @@ import java.util.List;
 
 public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
+    private final Context appContext;
+
     private static final String DATABASE_NAME = "scamshield.db";
     private static final int DATABASE_VERSION = 2;
 
@@ -35,6 +37,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
     public ScanDatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+        this.appContext = context.getApplicationContext();
     }
 
     // Get the currently authenticated user's Firebase UID.
@@ -152,6 +155,16 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
         // Upload to Firestore only if local saving succeeds.
         if (insertedId != -1) {
+
+            // Send notification for high-risk scans.
+            if (riskScore >= 60) {
+                SecurityNotificationHelper.showHighRiskNotification(
+                        appContext,
+                        normalizedType,
+                        riskScore,
+                        scannedContent
+                );
+            }
 
             ScanRecord record = new ScanRecord(
                     (int) insertedId,

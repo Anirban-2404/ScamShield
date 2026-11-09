@@ -626,7 +626,8 @@ public class MainActivity extends AppCompatActivity {
                 "Account Information",
                 "Logout",
                 "Clear Scan History",
-                "About ScamShield"
+                "About ScamShield",
+                isProtectionActive() ? "Turn Protection OFF" : "Turn Protection ON"
         };
 
         new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -670,10 +671,120 @@ public class MainActivity extends AppCompatActivity {
                                     .setPositiveButton("OK", null)
                                     .show();
                             break;
+
+                        case 4:
+                            toggleProtection();
+                            break;
+
                     }
                 })
                 .setNegativeButton("Close", null)
                 .show();
+    }
+
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 101;
+
+    private boolean isProtectionActive() {
+        return getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+                .getBoolean("protection_active", false);
+    }
+
+    private void toggleProtection() {
+
+        if (isProtectionActive()) {
+
+            Intent serviceIntent = new Intent(
+                    MainActivity.this,
+                    SecurityMonitoringService.class
+            );
+
+            stopService(serviceIntent);
+
+            getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("protection_active", false)
+                    .apply();
+
+            Toast.makeText(
+                    this,
+                    "ScamShield Protection turned OFF",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+        } else {
+
+            if (android.os.Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(
+                    android.Manifest.permission.POST_NOTIFICATIONS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                        new String[]{
+                                android.Manifest.permission.POST_NOTIFICATIONS
+                        },
+                        NOTIFICATION_PERMISSION_REQUEST
+                );
+
+                return;
+            }
+
+            startProtectionService();
+        }
+    }
+
+    private void startProtectionService() {
+
+        Intent serviceIntent = new Intent(
+                MainActivity.this,
+                SecurityMonitoringService.class
+        );
+
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+
+        getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+                .edit()
+                .putBoolean("protection_active", true)
+                .apply();
+
+        Toast.makeText(
+                this,
+                "ScamShield Protection turned ON",
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                grantResults
+        );
+
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+
+            if (grantResults.length > 0
+                    && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+                startProtectionService();
+
+            } else {
+
+                Toast.makeText(
+                        this,
+                        "Notification permission is required to enable visible protection status.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }
     }
 
 
