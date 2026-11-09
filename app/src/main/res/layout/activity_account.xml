@@ -86,6 +86,16 @@
                 android:textSize="13sp"
                 android:textIsSelectable="true" />
 
+            <Button
+                android:id="@+id/btnCopyUid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Copy User ID"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#286044" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
@@ -130,10 +140,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Authenticated"
+                android:text="Checking..."
                 android:textColor="#42D392"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnVerifyEmail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Send Verification Email"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#286044" />
 
         </LinearLayout>
 
