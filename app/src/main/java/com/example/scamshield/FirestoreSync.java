@@ -19,6 +19,7 @@ public class FirestoreSync {
             ScanRecord scan,
             SyncCallback callback
     ) {
+
         FirebaseUser user =
                 FirebaseAuth.getInstance().getCurrentUser();
 
@@ -32,6 +33,7 @@ public class FirestoreSync {
         String uid = user.getUid();
 
         Map<String, Object> data = new HashMap<>();
+
         data.put("userUid", uid);
         data.put("scanId", String.valueOf(scan.getId()));
         data.put("scanType", scan.getScanType());
@@ -45,8 +47,9 @@ public class FirestoreSync {
                 .collection("users")
                 .document(uid)
                 .collection("scans")
-                .add(data)
-                .addOnSuccessListener(documentReference ->
+                .document(String.valueOf(scan.getId()))
+                .set(data)
+                .addOnSuccessListener(result ->
                         callback.onSuccess()
                 )
                 .addOnFailureListener(callback::onFailure);

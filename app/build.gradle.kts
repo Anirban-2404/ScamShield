@@ -82,4 +82,5 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.database)
+    implementation("androidx.work:work-runtime:2.10.1")
 }

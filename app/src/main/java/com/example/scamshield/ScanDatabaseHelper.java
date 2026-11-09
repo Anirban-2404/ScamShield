@@ -1,12 +1,12 @@
 
 package com.example.scamshield;
 
-import android.util.Log;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -19,11 +19,12 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
     private final Context appContext;
 
     private static final String DATABASE_NAME = "scamshield.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     private static final String TABLE_SCANS = "scans";
 
     private static final String COL_ID = "id";
+    private static final String COL_SYNCED = "is_synced";
     private static final String COL_TYPE = "scan_type";
     private static final String COL_CONTENT = "scanned_content";
     private static final String COL_SCORE = "risk_score";
@@ -32,7 +33,6 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
     private static final String COL_TIMESTAMP = "scanned_at";
     private static final String COL_USER_UID = "user_uid";
 
-    // Old records cannot be assigned to an account reliably.
     private static final String LEGACY_UID = "legacy_unassigned";
 
     public ScanDatabaseHelper(Context context) {
@@ -40,9 +40,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         this.appContext = context.getApplicationContext();
     }
 
-    // Get the currently authenticated user's Firebase UID.
     private String getCurrentUserUid() {
-
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
         if (user == null) {
@@ -63,9 +61,16 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
                 + COL_LEVEL + " TEXT NOT NULL, "
                 + COL_EXPLANATION + " TEXT, "
                 + COL_TIMESTAMP + " INTEGER NOT NULL, "
-                + COL_USER_UID + " TEXT NOT NULL)";
+                + COL_USER_UID + " TEXT NOT NULL, "
+                + COL_SYNCED + " INTEGER NOT NULL DEFAULT 0)";
 
         db.execSQL(query);
+
+        db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_scans_user "
+                        + "ON " + TABLE_SCANS
+                        + "(" + COL_USER_UID + ")"
+        );
     }
 
     @Override
@@ -90,10 +95,18 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
                             + "(" + COL_USER_UID + ")"
             );
         }
+
+        if (oldVersion < 3) {
+
+            db.execSQL(
+                    "ALTER TABLE " + TABLE_SCANS
+                            + " ADD COLUMN " + COL_SYNCED
+                            + " INTEGER NOT NULL DEFAULT 0"
+            );
+        }
     }
 
-    // Save a scan under the currently logged-in account.
-
+    // Save a scan locally and synchronize it with Firebase.
     public long insertScan(
             String scanType,
             String scannedContent,
@@ -114,11 +127,13 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         if (scanType == null ||
                 (!scanType.equalsIgnoreCase("MESSAGE")
                         && !scanType.equalsIgnoreCase("URL"))) {
+
             throw new IllegalArgumentException("Invalid scan type");
         }
 
         if (scannedContent == null ||
                 scannedContent.trim().isEmpty()) {
+
             throw new IllegalArgumentException(
                     "Scanned content cannot be empty"
             );
@@ -149,11 +164,11 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_EXPLANATION, explanation);
         values.put(COL_TIMESTAMP, scannedAt);
         values.put(COL_USER_UID, uid);
+        values.put(COL_SYNCED, 0);
 
-        // First save the scan locally.
+        // Save locally first.
         long insertedId = db.insert(TABLE_SCANS, null, values);
 
-        // Upload to Firestore only if local saving succeeds.
         if (insertedId != -1) {
 
             // Send notification for high-risk scans.
@@ -176,12 +191,16 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
                     scannedAt
             );
 
+            // Attempt immediate Firestore upload.
             FirestoreSync.uploadScan(
                     record,
                     new FirestoreSync.SyncCallback() {
 
                         @Override
                         public void onSuccess() {
+
+                            markScanAsSynced((int) insertedId);
+
                             Log.d(
                                     "FirestoreSync",
                                     "Scan uploaded successfully."
@@ -190,14 +209,20 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
 
                         @Override
                         public void onFailure(Exception error) {
+
                             Log.e(
                                     "FirestoreSync",
-                                    "Scan upload failed.",
+                                    "Immediate upload failed. "
+                                            + "Background retry will handle it.",
                                     error
                             );
                         }
                     }
             );
+
+            // Schedule background synchronization.
+            // Pending scans will be retried when internet is available.
+            FirestoreSyncWorker.schedule(appContext);
 
             // Update Firebase Realtime Database statistics.
             RealtimeDatabaseManager.updateScanStatistics(
@@ -229,8 +254,7 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         return insertedId;
     }
 
-
-    // Retrieve only the current user's scans.
+    // Retrieve all scans belonging to the current user.
     public List<ScanRecord> getAllScans() {
 
         List<ScanRecord> scanList = new ArrayList<>();
@@ -282,6 +306,89 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         }
 
         return scanList;
+    }
+
+    // Retrieve scans that have not yet been uploaded to Firestore.
+    public List<ScanRecord> getPendingScans() {
+
+        List<ScanRecord> pendingScans = new ArrayList<>();
+
+        String uid = getCurrentUserUid();
+
+        if (uid == null) {
+            return pendingScans;
+        }
+
+        SQLiteDatabase db = getReadableDatabase();
+
+        try (Cursor cursor = db.query(
+                TABLE_SCANS,
+                null,
+                COL_USER_UID + " = ? AND " + COL_SYNCED + " = ?",
+                new String[]{uid, "0"},
+                null,
+                null,
+                COL_TIMESTAMP + " ASC"
+        )) {
+
+            while (cursor.moveToNext()) {
+
+                pendingScans.add(new ScanRecord(
+                        cursor.getInt(
+                                cursor.getColumnIndexOrThrow(COL_ID)
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(COL_TYPE)
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(COL_CONTENT)
+                        ),
+                        cursor.getInt(
+                                cursor.getColumnIndexOrThrow(COL_SCORE)
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(COL_LEVEL)
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(COL_EXPLANATION)
+                        ),
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(COL_TIMESTAMP)
+                        )
+                ));
+            }
+        }
+
+        return pendingScans;
+    }
+
+    // Mark a scan as successfully synchronized with Firestore.
+    public void markScanAsSynced(int scanId) {
+
+        String uid = getCurrentUserUid();
+
+        if (uid == null) {
+            return;
+        }
+
+        ContentValues values = new ContentValues();
+        values.put(COL_SYNCED, 1);
+
+        int updatedRows = getWritableDatabase().update(
+                TABLE_SCANS,
+                values,
+                COL_ID + " = ? AND " + COL_USER_UID + " = ?",
+                new String[]{
+                        String.valueOf(scanId),
+                        uid
+                }
+        );
+
+        Log.d(
+                "FirestoreSync",
+                "Marked scan " + scanId
+                        + " as synced. Updated rows: " + updatedRows
+        );
     }
 
     public int getTotalScans() {
@@ -362,7 +469,8 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
         return 0;
     }
 
-    // Clear only the currently logged-in user's history.
+    // Clear only the current user's local scan history.
+
     public void clearHistory() {
 
         String uid = getCurrentUserUid();
@@ -371,10 +479,38 @@ public class ScanDatabaseHelper extends SQLiteOpenHelper {
             return;
         }
 
+        // 1. Clear local SQLite history.
         getWritableDatabase().delete(
                 TABLE_SCANS,
                 COL_USER_UID + " = ?",
                 new String[]{uid}
         );
+
+        // 2. Reset Firebase Realtime Database statistics.
+        java.util.Map<String, Object> resetStats =
+                new java.util.HashMap<>();
+
+        resetStats.put("totalMessageScans", 0);
+        resetStats.put("totalUrlScans", 0);
+        resetStats.put("highRiskDetections", 0);
+        resetStats.put("lastScanAt", 0);
+        resetStats.put(
+                "lastUpdatedAt",
+                com.google.firebase.database.ServerValue.TIMESTAMP
+        );
+
+        com.google.firebase.database.FirebaseDatabase
+                .getInstance()
+                .getReference("users")
+                .child(uid)
+                .child("stats")
+                .updateChildren(resetStats)
+                .addOnSuccessListener(unused ->
+                        Log.d("ScanDatabase", "History and statistics cleared.")
+                )
+                .addOnFailureListener(error ->
+                        Log.e("ScanDatabase", "Failed to reset Firebase statistics.", error)
+                );
     }
+
 }
