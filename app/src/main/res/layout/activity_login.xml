@@ -12,6 +12,7 @@
         android:orientation="vertical"
         android:padding="28dp">
 
+        <!-- App Name -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -20,6 +21,7 @@
             android:textSize="30sp"
             android:textStyle="bold" />
 
+        <!-- Welcome Heading -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -37,6 +39,7 @@
             android:textColor="#AAB9B0"
             android:textSize="15sp" />
 
+        <!-- Email Input -->
         <EditText
             android:id="@+id/emailInput"
             android:layout_width="match_parent"
@@ -49,6 +52,7 @@
             android:textColor="#FFFFFF"
             android:textColorHint="#87958C" />
 
+        <!-- Password Input -->
         <EditText
             android:id="@+id/passwordInput"
             android:layout_width="match_parent"
@@ -61,16 +65,33 @@
             android:textColor="#FFFFFF"
             android:textColorHint="#87958C" />
 
+        <!-- Forgot Password -->
+        <TextView
+            android:id="@+id/forgotPasswordLink"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="end"
+            android:padding="6dp"
+            android:text="Forgot Password?"
+            android:textColor="#42D392"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Login Button -->
         <Button
             android:id="@+id/loginButton"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_marginTop="25dp"
+            android:layout_marginTop="15dp"
             android:backgroundTint="#16A36A"
             android:text="Sign In"
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
+        <!-- Loading Indicator -->
         <ProgressBar
             android:id="@+id/loginProgress"
             android:layout_width="wrap_content"
@@ -80,6 +101,7 @@
             android:visibility="gone"
             android:indeterminateTint="#16A36A" />
 
+        <!-- Register Link -->
         <TextView
             android:id="@+id/registerLink"
             android:layout_width="match_parent"

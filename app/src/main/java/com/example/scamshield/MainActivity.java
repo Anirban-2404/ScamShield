@@ -11,6 +11,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.google.firebase.auth.FirebaseAuth;
 
 import androidx.appcompat.app.AlertDialog;
@@ -35,12 +36,16 @@ public class MainActivity extends AppCompatActivity {
     private static final String HISTORY = "scan_history";
     private static final String MIGRATION_DONE = "sqlite_migration_done";
 
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 101;
+    private static final int SMS_PERMISSION_REQUEST = 102;
+
     private final int WHITE = Color.WHITE;
     private final int MUTED = Color.rgb(140, 169, 154);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -65,11 +70,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeViews() {
+
         messageCount = findViewById(R.id.messageCount);
         urlCount = findViewById(R.id.urlCount);
         threatCount = findViewById(R.id.threatCount);
     }
 
+    // ---------------- LOGOUT ----------------
 
     private void confirmLogout() {
 
@@ -79,23 +86,24 @@ public class MainActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Logout", (dialog, which) -> {
 
-                    // 1. Stop the foreground protection service
+                    // Stop the foreground protection service.
                     Intent serviceIntent = new Intent(
                             MainActivity.this,
                             SecurityMonitoringService.class
                     );
+
                     stopService(serviceIntent);
 
-                    // 2. Reset the protection status
+                    // Reset protection status.
                     getSharedPreferences(PREFS, MODE_PRIVATE)
                             .edit()
                             .putBoolean("protection_active", false)
                             .apply();
 
-                    // 3. Sign out from Firebase
+                    // Sign out from Firebase.
                     FirebaseAuth.getInstance().signOut();
 
-                    // 4. Navigate to LoginActivity
+                    // Navigate to LoginActivity.
                     Intent loginIntent = new Intent(
                             MainActivity.this,
                             LoginActivity.class
@@ -112,34 +120,57 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    // ---------------- CLICK LISTENERS ----------------
 
     private void setupClickListeners() {
 
         findViewById(R.id.messageScanCard).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, MessageScannerActivity.class);
+
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    MessageScannerActivity.class
+            );
+
             startActivity(intent);
         });
 
         findViewById(R.id.urlScanCard).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, UrlScannerActivity.class);
+
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    UrlScannerActivity.class
+            );
+
             startActivity(intent);
         });
 
         findViewById(R.id.viewHistory).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    HistoryActivity.class
+            );
+
             startActivity(intent);
         });
 
         findViewById(R.id.historyNav).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    HistoryActivity.class
+            );
+
             startActivity(intent);
         });
 
         findViewById(R.id.statsNav).setOnClickListener(v -> {
+
             Intent intent = new Intent(
                     MainActivity.this,
                     DashboardActivity.class
             );
+
             startActivity(intent);
         });
 
@@ -150,8 +181,11 @@ public class MainActivity extends AppCompatActivity {
 
         if (home != null) {
             home.setOnClickListener(v ->
-                    Toast.makeText(this, "You are on Home",
-                            Toast.LENGTH_SHORT).show());
+                    Toast.makeText(
+                            this,
+                            "You are on Home",
+                            Toast.LENGTH_SHORT
+                    ).show());
         }
     }
 
@@ -160,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
     private void showMessageScanner() {
 
         EditText input = new EditText(this);
+
         input.setHint("Paste a suspicious message here...");
         input.setTextColor(WHITE);
         input.setHintTextColor(MUTED);
@@ -181,8 +216,13 @@ public class MainActivity extends AppCompatActivity {
                     String message = input.getText().toString().trim();
 
                     if (message.isEmpty()) {
-                        Toast.makeText(this, "Please enter a message",
-                                Toast.LENGTH_SHORT).show();
+
+                        Toast.makeText(
+                                this,
+                                "Please enter a message",
+                                Toast.LENGTH_SHORT
+                        ).show();
+
                         return;
                     }
 
@@ -220,17 +260,37 @@ public class MainActivity extends AppCompatActivity {
                 "payment required"
         };
 
-        score += checkWords(text, urgentWords, 15,
-                reasons, "Urgent or threatening language detected");
+        score += checkWords(
+                text,
+                urgentWords,
+                15,
+                reasons,
+                "Urgent or threatening language detected"
+        );
 
-        score += checkWords(text, sensitiveWords, 25,
-                reasons, "Sensitive information is requested");
+        score += checkWords(
+                text,
+                sensitiveWords,
+                25,
+                reasons,
+                "Sensitive information is requested"
+        );
 
-        score += checkWords(text, rewardWords, 20,
-                reasons, "Unexpected reward or prize language detected");
+        score += checkWords(
+                text,
+                rewardWords,
+                20,
+                reasons,
+                "Unexpected reward or prize language detected"
+        );
 
-        score += checkWords(text, suspiciousWords, 20,
-                reasons, "Potentially deceptive request detected");
+        score += checkWords(
+                text,
+                suspiciousWords,
+                20,
+                reasons,
+                "Potentially deceptive request detected"
+        );
 
         score = Math.min(score, 100);
 
@@ -244,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
     private void showUrlScanner() {
 
         EditText input = new EditText(this);
+
         input.setHint("https://example.com");
         input.setTextColor(WHITE);
         input.setHintTextColor(MUTED);
@@ -264,8 +325,13 @@ public class MainActivity extends AppCompatActivity {
                     String url = input.getText().toString().trim();
 
                     if (url.isEmpty()) {
-                        Toast.makeText(this, "Please enter a URL",
-                                Toast.LENGTH_SHORT).show();
+
+                        Toast.makeText(
+                                this,
+                                "Please enter a URL",
+                                Toast.LENGTH_SHORT
+                        ).show();
+
                         return;
                     }
 
@@ -282,24 +348,46 @@ public class MainActivity extends AppCompatActivity {
         int score = 0;
         JSONArray reasons = new JSONArray();
 
-        if (!text.matches("^(https?://)?[a-z0-9.-]+\\.[a-z]{2,}(:[0-9]+)?([/?#].*)?$")) {
+        if (!text.matches(
+                "^(https?://)?[a-z0-9.-]+\\.[a-z]{2,}(:[0-9]+)?([/?#].*)?$"
+        )) {
+
             score += 40;
-            addReason(reasons, "Invalid or unusual URL format");
+
+            addReason(
+                    reasons,
+                    "Invalid or unusual URL format"
+            );
         }
 
         if (text.startsWith("http://")) {
+
             score += 20;
-            addReason(reasons, "Website does not use HTTPS");
+
+            addReason(
+                    reasons,
+                    "Website does not use HTTPS"
+            );
         }
 
         if (text.contains("@")) {
+
             score += 30;
-            addReason(reasons, "URL contains an unusual @ symbol");
+
+            addReason(
+                    reasons,
+                    "URL contains an unusual @ symbol"
+            );
         }
 
         if (text.matches(".*\\d+\\.\\d+\\.\\d+\\.\\d+.*")) {
+
             score += 30;
-            addReason(reasons, "URL appears to use an IP address");
+
+            addReason(
+                    reasons,
+                    "URL appears to use an IP address"
+            );
         }
 
         String[] suspiciousTerms = {
@@ -308,17 +396,28 @@ public class MainActivity extends AppCompatActivity {
         };
 
         for (String term : suspiciousTerms) {
+
             if (text.contains(term)) {
+
                 score += 10;
-                addReason(reasons,
-                        "Suspicious keyword found: " + term);
+
+                addReason(
+                        reasons,
+                        "Suspicious keyword found: " + term
+                );
+
                 break;
             }
         }
 
         if (text.length() > 100) {
+
             score += 15;
-            addReason(reasons, "Unusually long URL");
+
+            addReason(
+                    reasons,
+                    "Unusually long URL"
+            );
         }
 
         score = Math.min(score, 100);
@@ -330,12 +429,20 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------------- ANALYSIS HELPERS ----------------
 
-    private int checkWords(String text, String[] words, int points,
-                           JSONArray reasons, String description) {
+    private int checkWords(
+            String text,
+            String[] words,
+            int points,
+            JSONArray reasons,
+            String description
+    ) {
 
         for (String word : words) {
+
             if (text.contains(word)) {
+
                 addReason(reasons, description);
+
                 return points;
             }
         }
@@ -358,32 +465,57 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showResult(String title, int score, JSONArray reasons) {
+    private void showResult(
+            String title,
+            int score,
+            JSONArray reasons
+    ) {
 
         String level;
         String recommendation;
 
         if (score >= 60) {
+
             level = "HIGH RISK";
-            recommendation = "Do not click links or share personal information.";
+
+            recommendation =
+                    "Do not click links or share personal information.";
+
         } else if (score >= 30) {
+
             level = "MODERATE RISK";
-            recommendation = "Be cautious and verify the source independently.";
+
+            recommendation =
+                    "Be cautious and verify the source independently.";
+
         } else {
+
             level = "LOW RISK";
-            recommendation = "No major warning signs were detected by this basic scan.";
+
+            recommendation =
+                    "No major warning signs were detected by this basic scan.";
         }
 
         StringBuilder result = new StringBuilder();
 
-        result.append("Risk Score: ").append(score).append("/100\n\n");
-        result.append("Assessment: ").append(level).append("\n\n");
+        result.append("Risk Score: ")
+                .append(score)
+                .append("/100\n\n");
+
+        result.append("Assessment: ")
+                .append(level)
+                .append("\n\n");
+
         result.append("Warning Signs:\n");
 
         if (reasons.length() == 0) {
+
             result.append("• No suspicious indicators detected.\n");
+
         } else {
+
             for (int i = 0; i < reasons.length(); i++) {
+
                 result.append("• ")
                         .append(reasons.optString(i))
                         .append("\n");
@@ -393,7 +525,10 @@ public class MainActivity extends AppCompatActivity {
         result.append("\nRecommendation:\n")
                 .append(recommendation);
 
-        result.append("\n\nNote: This is a basic rule-based analysis, not a guarantee that content is safe or malicious.");
+        result.append(
+                "\n\nNote: This is a basic rule-based analysis, " +
+                        "not a guarantee that content is safe or malicious."
+        );
 
         new AlertDialog.Builder(this)
                 .setTitle(title)
@@ -406,8 +541,12 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------------- SQLITE STORAGE ----------------
 
-    private void saveScan(String type, String content,
-                          int score, JSONArray reasons) {
+    private void saveScan(
+            String type,
+            String content,
+            int score,
+            JSONArray reasons
+    ) {
 
         String riskLevel = getRiskLevel(score);
 
@@ -421,14 +560,19 @@ public class MainActivity extends AppCompatActivity {
         );
 
         if (result == -1) {
-            Toast.makeText(this, "Could not save scan",
-                    Toast.LENGTH_SHORT).show();
+
+            Toast.makeText(
+                    this,
+                    "Could not save scan",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
 
         updateDashboard();
     }
 
-    // Migrate previously saved SharedPreferences history into SQLite
+    // ---------------- OLD HISTORY MIGRATION ----------------
+
     private void migrateOldHistory() {
 
         android.content.SharedPreferences preferences =
@@ -441,6 +585,7 @@ public class MainActivity extends AppCompatActivity {
         String oldData = preferences.getString(HISTORY, "[]");
 
         try {
+
             JSONArray oldHistory = new JSONArray(oldData);
 
             for (int i = 0; i < oldHistory.length(); i++) {
@@ -454,7 +599,11 @@ public class MainActivity extends AppCompatActivity {
                 String type = item.optString("type", "");
                 String content = item.optString("content", "");
                 int score = item.optInt("score", 0);
-                long time = item.optLong("time", System.currentTimeMillis());
+
+                long time = item.optLong(
+                        "time",
+                        System.currentTimeMillis()
+                );
 
                 JSONArray reasons = item.optJSONArray("reasons");
 
@@ -474,18 +623,22 @@ public class MainActivity extends AppCompatActivity {
                 // Avoid importing records already present.
                 boolean alreadyImported = false;
 
-                List<ScanRecord> existingRecords = databaseHelper.getAllScans();
+                List<ScanRecord> existingRecords =
+                        databaseHelper.getAllScans();
 
                 for (ScanRecord record : existingRecords) {
+
                     if (record.getScanType().equalsIgnoreCase(type)
                             && record.getScannedContent().equals(content)
                             && record.getScannedAt() == time) {
+
                         alreadyImported = true;
                         break;
                     }
                 }
 
                 if (!alreadyImported && score >= 0 && score <= 100) {
+
                     databaseHelper.insertScan(
                             type.toUpperCase(Locale.ROOT),
                             content,
@@ -498,14 +651,20 @@ public class MainActivity extends AppCompatActivity {
             }
 
         } catch (JSONException e) {
-            Toast.makeText(this, "Old history migration failed",
-                    Toast.LENGTH_LONG).show();
+
+            Toast.makeText(
+                    this,
+                    "Old history migration failed",
+                    Toast.LENGTH_LONG
+            ).show();
         }
 
         preferences.edit()
                 .putBoolean(MIGRATION_DONE, true)
                 .apply();
     }
+
+    // ---------------- DASHBOARD ----------------
 
     private void updateDashboard() {
 
@@ -525,11 +684,15 @@ public class MainActivity extends AppCompatActivity {
         List<ScanRecord> history = databaseHelper.getAllScans();
 
         if (history.isEmpty()) {
+
             new AlertDialog.Builder(this)
                     .setTitle("Analysis History")
-                    .setMessage("No analysis records found.\n\nStart your first scan!")
+                    .setMessage(
+                            "No analysis records found.\n\nStart your first scan!"
+                    )
                     .setPositiveButton("OK", null)
                     .show();
+
             return;
         }
 
@@ -568,7 +731,8 @@ public class MainActivity extends AppCompatActivity {
 
         StringBuilder details = new StringBuilder();
 
-        details.append("Type: ").append(item.getScanType());
+        details.append("Type: ")
+                .append(item.getScanType());
 
         details.append("\n\nContent:\n")
                 .append(item.getScannedContent());
@@ -584,18 +748,26 @@ public class MainActivity extends AppCompatActivity {
         JSONArray reasons;
 
         try {
+
             reasons = new JSONArray(item.getExplanation());
+
         } catch (JSONException e) {
+
             reasons = new JSONArray();
         }
 
         details.append("\n\nWarning Signs:");
 
         if (reasons.length() > 0) {
+
             for (int i = 0; i < reasons.length(); i++) {
-                details.append("\n• ").append(reasons.optString(i));
+
+                details.append("\n• ")
+                        .append(reasons.optString(i));
             }
+
         } else {
+
             details.append("\nNo warning signs detected.");
         }
 
@@ -632,7 +804,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------------- SETTINGS ----------------
 
-
     private void showSettings() {
 
         String[] options = {
@@ -640,34 +811,43 @@ public class MainActivity extends AppCompatActivity {
                 "Logout",
                 "Clear Scan History",
                 "About ScamShield",
-                isProtectionActive() ? "Turn Protection OFF" : "Turn Protection ON"
+                isProtectionActive()
+                        ? "Turn Protection OFF"
+                        : "Turn Protection ON"
         };
 
-        new androidx.appcompat.app.AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
                 .setTitle("Settings")
                 .setItems(options, (dialog, which) -> {
 
                     switch (which) {
 
                         case 0:
+
                             Intent accountIntent = new Intent(
                                     MainActivity.this,
                                     AccountActivity.class
                             );
 
                             startActivity(accountIntent);
+
                             break;
 
                         case 1:
+
                             confirmLogout();
+
                             break;
 
                         case 2:
+
                             confirmClearHistory();
+
                             break;
 
                         case 3:
-                            new androidx.appcompat.app.AlertDialog.Builder(this)
+
+                            new AlertDialog.Builder(this)
                                     .setTitle("About ScamShield")
                                     .setMessage(
                                             "ScamShield\n\n" +
@@ -676,22 +856,25 @@ public class MainActivity extends AppCompatActivity {
                                     )
                                     .setPositiveButton("OK", null)
                                     .show();
+
                             break;
 
                         case 4:
-                            toggleProtection();
-                            break;
 
+                            toggleProtection();
+
+                            break;
                     }
                 })
                 .setNegativeButton("Close", null)
                 .show();
     }
 
-    private static final int NOTIFICATION_PERMISSION_REQUEST = 101;
+    // ---------------- AUTOMATIC PROTECTION ----------------
 
     private boolean isProtectionActive() {
-        return getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+
+        return getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean("protection_active", false);
     }
 
@@ -699,6 +882,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (isProtectionActive()) {
 
+            // Turn protection OFF.
             Intent serviceIntent = new Intent(
                     MainActivity.this,
                     SecurityMonitoringService.class
@@ -706,7 +890,7 @@ public class MainActivity extends AppCompatActivity {
 
             stopService(serviceIntent);
 
-            getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+            getSharedPreferences(PREFS, MODE_PRIVATE)
                     .edit()
                     .putBoolean("protection_active", false)
                     .apply();
@@ -719,6 +903,7 @@ public class MainActivity extends AppCompatActivity {
 
         } else {
 
+            // First request notification permission if needed.
             if (android.os.Build.VERSION.SDK_INT >= 33
                     && checkSelfPermission(
                     android.Manifest.permission.POST_NOTIFICATIONS
@@ -734,34 +919,84 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+            // Then check and request SMS permission.
             startProtectionService();
         }
     }
 
     private void startProtectionService() {
 
+        // Check SMS permission on Android 6.0 and later.
+        if (android.os.Build.VERSION.SDK_INT >=
+                android.os.Build.VERSION_CODES.M) {
+
+            if (checkSelfPermission(
+                    android.Manifest.permission.RECEIVE_SMS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+                new AlertDialog.Builder(this)
+                        .setTitle("SMS Permission Required")
+                        .setMessage(
+                                "ScamShield needs permission to receive " +
+                                        "incoming SMS broadcasts so it can " +
+                                        "locally check messages and links for " +
+                                        "suspicious patterns.\n\n" +
+                                        "Normal messages will not be saved."
+                        )
+                        .setCancelable(false)
+                        .setNegativeButton("Cancel", (dialog, which) -> {
+
+                            Toast.makeText(
+                                    this,
+                                    "Automatic SMS protection was not enabled.",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        })
+                        .setPositiveButton("Continue", (dialog, which) -> {
+
+                            requestPermissions(
+                                    new String[]{
+                                            android.Manifest.permission.RECEIVE_SMS
+                                    },
+                                    SMS_PERMISSION_REQUEST
+                            );
+                        })
+                        .show();
+
+                return;
+            }
+        }
+
+        // Start the foreground protection service.
         Intent serviceIntent = new Intent(
                 MainActivity.this,
                 SecurityMonitoringService.class
         );
 
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
+        if (android.os.Build.VERSION.SDK_INT >=
+                android.os.Build.VERSION_CODES.O) {
+
             startForegroundService(serviceIntent);
+
         } else {
+
             startService(serviceIntent);
         }
 
-        getSharedPreferences("ScamShieldData", MODE_PRIVATE)
+        // Enable automatic SMS scanning.
+        getSharedPreferences(PREFS, MODE_PRIVATE)
                 .edit()
                 .putBoolean("protection_active", true)
                 .apply();
 
         Toast.makeText(
                 this,
-                "ScamShield Protection turned ON",
+                "ScamShield Protection Activated",
                 Toast.LENGTH_SHORT
         ).show();
     }
+
+    // ---------------- PERMISSION RESULTS ----------------
 
     @Override
     public void onRequestPermissionsResult(
@@ -769,17 +1004,21 @@ public class MainActivity extends AppCompatActivity {
             String[] permissions,
             int[] grantResults
     ) {
+
         super.onRequestPermissionsResult(
                 requestCode,
                 permissions,
                 grantResults
         );
 
+        // Notification permission result.
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
 
             if (grantResults.length > 0
-                    && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    && grantResults[0] ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
 
+                // After notification permission, check SMS permission.
                 startProtectionService();
 
             } else {
@@ -791,8 +1030,29 @@ public class MainActivity extends AppCompatActivity {
                 ).show();
             }
         }
+
+        // SMS permission result.
+        else if (requestCode == SMS_PERMISSION_REQUEST) {
+
+            if (grantResults.length > 0
+                    && grantResults[0] ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+                // Permission granted. Now start protection.
+                startProtectionService();
+
+            } else {
+
+                Toast.makeText(
+                        this,
+                        "SMS permission denied. Automatic SMS protection cannot start.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }
     }
 
+    // ---------------- APP INFORMATION ----------------
 
     private void showAppInformation() {
 
@@ -811,26 +1071,36 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    // ---------------- CLEAR HISTORY ----------------
+
     private void confirmClearHistory() {
 
         new AlertDialog.Builder(this)
                 .setTitle("Clear History?")
-                .setMessage("This will permanently delete all saved scan records.")
+                .setMessage(
+                        "This will permanently delete all saved scan records."
+                )
                 .setPositiveButton("Clear", (dialog, which) -> {
 
                     databaseHelper.clearHistory();
 
                     updateDashboard();
 
-                    Toast.makeText(this, "History cleared",
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(
+                            this,
+                            "History cleared",
+                            Toast.LENGTH_SHORT
+                    ).show();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
+    // ---------------- DESTROY ----------------
+
     @Override
     protected void onDestroy() {
+
         super.onDestroy();
 
         if (databaseHelper != null) {
