@@ -1,8 +1,8 @@
-🛡️ ScamShield – Android Security Application
+ ScamShield – Android Security Application
 ScamShield is an Android-based mobile security application designed to identify suspicious SMS messages and potentially malicious URLs. It combines rule-based analysis, external threat intelligence, local database storage, and Firebase cloud services to help users recognize potential scams and phishing threats.
-📱 Project Overview
+ Project Overview
 ScamShield provides automatic incoming SMS scanning and manual URL scanning. It analyzes suspicious patterns, calculates risk scores, and alerts users about potentially dangerous content.
-✨ Features
+ Features
 1. User Authentication
 User registration and login.
 Firebase Authentication integration.
@@ -44,7 +44,7 @@ Supports retry handling when network connectivity becomes available.
 9. Security Monitoring
 Uses an Android Foreground Service to maintain an ongoing protection status notification.
 Provides a protection control through application settings.
-🛠️ Technologies Used
+    Technologies Used
 Technology
 Purpose
 Java
@@ -74,7 +74,7 @@ URLhaus integration
 JSON
 API response processing
 
-🏗️ Application Architecture
+ Application Architecture
 The application follows a modular structure, separating user interface, scanning logic, database management, cloud synchronization, and Android background components.
 Main Components
 Component
@@ -102,7 +102,7 @@ Statistics and connectivity status
 AccountActivity
 Account information
 
-⚙️ Installation and Setup
+ Installation and Setup
 Prerequisites
 Android Studio
 Android SDK compatible with the project
@@ -125,7 +125,7 @@ Add the appropriate Firebase configuration file.
 Configure the URLhaus API authentication key using the project's expected configuration method. Do not commit private API keys to the repository.
 Allow Gradle to synchronize the project dependencies.
 Run the application on a compatible Android device or emulator.
-🔍 Risk Classification
+ Risk Classification
 Risk Score
 Risk Level
 0–29
@@ -136,14 +136,14 @@ MODERATE
 HIGH
 
 The application uses predefined rules and scoring mechanisms. URLhaus provides additional threat-intelligence information for manual URL scanning.
-🔐 Permissions
+ Permissions
 Depending on the Android version and enabled features, ScamShield may require permissions for:
 Receiving SMS messages.
 Internet access.
 Notifications.
 Foreground service operation.
 Permissions are requested and managed according to Android platform requirements.
-📸 Screenshots
+ Screenshots
 Application screenshots will be added here.
 Suggested screenshots:
 Login and Registration
@@ -155,14 +155,14 @@ High-Risk Notification
 Scan History
 Statistics Dashboard
 Account Information
-⚠️ Disclaimer
+ Disclaimer
 ScamShield is an educational Android security project. Its rule-based detection and threat-intelligence lookup cannot guarantee detection of every scam or malicious URL.
 A URL not found in the URLhaus database should not automatically be considered safe.
-👨‍💻 Developer
+ Developer
 Anirban Majumder Joy
 Khulna University of Engineering & Technology,
 Bangladesh
-📂 Repository
+ Repository
 GitHub: https://github.com/Anirban-2404/ScamShield
 
 
